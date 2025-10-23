@@ -1,0 +1,76 @@
+name: Build OTGateway
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      board:
+        description: 'Select the board to build for'
+        required: true
+        type: choice
+        options:
+          - d1_mini
+          - d1_mini_lite
+          - d1_mini_pro
+          - nodemcu_8266
+          - s2_mini
+          - s3_mini
+          - c3_mini
+          - nodemcu_32
+          - d1_mini32
+          - esp32_c6
+          - otthing
+        default: 'd1_mini'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PlatformIO
+        run: |
+          pip install --upgrade pip
+          pip install platformio
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install GULP for file system build
+        run: npm install -g gulp-cli
+
+      - name: Install project dependencies
+        run: npm install
+        working-directory: ./
+
+      - name: Build firmware and file system
+        run: |
+          platformio run -e ${{ github.event.inputs.board || 'd1_mini' }}
+        env:
+          PLATFORMIO_BUILD_FLAGS: -DUSE_ESP32
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ github.event.inputs.board || 'd1_mini' }}
+          path: .pio/build/${{ github.event.inputs.board || 'd1_mini' }}/firmware.bin
+
+      - name: Upload file system image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: filesystem-${{ github.event.inputs.board || 'd1_mini' }}
+          path: .pio/build/${{ github.event.inputs.board || 'd1_mini' }}/spiffs.bin
